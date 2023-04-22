@@ -1,2 +1,2 @@
-tedit: tedit.c
-	$(CC) tedit.c -o tedit -Wall -Wextra -pedantic -std=c99
+hayai: hayai.c
+	$(CC) hayai.c -o hayai -Wall -Wextra -pedantic -std=c99
