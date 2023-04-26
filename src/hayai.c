@@ -153,6 +153,17 @@ void editor_draw_rows(struct abuf* ab) {
             if (welcome_len > E.screencols) {
                 welcome_len = E.screencols;
             }
+
+            // Padding
+            int padding = (E.screencols - welcome_len) / 2;
+            if (padding != 0) {  // Add ~ at start of line if padding required
+                ab_append(ab, "~", 1);
+                padding--;
+            }
+            while (padding--) {
+                ab_append(ab, " ", 1);  // pad
+            }
+
             ab_append(ab, welcome, welcome_len);
         } else {
             ab_append(ab, "~", 1);
