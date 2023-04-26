@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -101,10 +102,13 @@ int get_cursor_pos(int* rows, int* cols) {
 int get_window_size(int* rows, int* cols) {
     struct winsize ws;
 
+    // Try to use ioctl to find terminal size
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+        // Try to move cursor 999 positions right and down
         if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) {
             return -1;
         }
+        // Terminal size is wherever the cursor ends up
         return get_cursor_pos(rows, cols);
     } else {
         *cols = ws.ws_col;
@@ -113,23 +117,49 @@ int get_window_size(int* rows, int* cols) {
     }
 }
 
+/* APPEND BUFFER */
+
+struct abuf {
+    char* b;
+    int len;
+}
+#define ABUF_INIT \
+    { NULL, 0 }
+
+void ab_append(struct abuf *ab, const char *s, int len){
+    char* new = realloc(ab->b, ab->len + len);
+
+    if (new == NULL) {
+        return;
+    }
+    memcpy(&new[ab->len], s, len);
+    ab->b = new;
+    ab->len += len;
+}
+
+void ab_free(struct abuf* ab) { free(ab->b); }
+
 /* OUTPUT FUNCTIONS */
-void editor_draw_rows() {
+void editor_draw_rows(struct abuf* ab) {
     for (int i = 0; i < E.screenrows; i++) {
-        write(STDOUT_FILENO, "~\r\n", 1);
+        ab_append(ab, "~", 1);
 
         if (i < E.screenrows - 1) {
-            write(STDOUT_FILENO, "\r\n", 2);
+            ab_append(ab, "\r\n", 2);
         }
     }
 }
 
 void editor_refresh_screen() {
-    write(STDOUT_FILENO, '\x1b[2J', 4);
-    write(STDOUT_FILENO, '\x1b[H', 3);
+    struct abuf ab = ABUF_INIT;
+    ab_append(&ab, "\x1b[2J", 4);
+    ab_append(&ab, "\x1b[H", 3);
 
-    editor_draw_rows();
-    write(STDOUT_FILENO, '\x1b[H', 3);
+    editor_draw_rows(&ab);
+    ab_append(&ab, "\x1b[H", 3);
+
+    write(STDOUT_FILENO, ab.b, ab.len);
+    ab_free(&ab);
 }
 
 /* INPUT FUNCTIONS */
