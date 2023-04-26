@@ -13,6 +13,8 @@
 // Converts ASCII character k into ASCII character equivalent to keypress CTRL+k
 #define CTRL_KEY(k) ((k)&0x1f)
 
+#define HAYAI_VERSION "0.0.1"
+
 /* DATA */
 
 struct editor_config {
@@ -122,11 +124,12 @@ int get_window_size(int* rows, int* cols) {
 struct abuf {
     char* b;
     int len;
-}
+};
+
 #define ABUF_INIT \
     { NULL, 0 }
 
-void ab_append(struct abuf *ab, const char *s, int len){
+void ab_append(struct abuf* ab, const char* s, int len) {
     char* new = realloc(ab->b, ab->len + len);
 
     if (new == NULL) {
@@ -142,8 +145,20 @@ void ab_free(struct abuf* ab) { free(ab->b); }
 /* OUTPUT FUNCTIONS */
 void editor_draw_rows(struct abuf* ab) {
     for (int i = 0; i < E.screenrows; i++) {
-        ab_append(ab, "~", 1);
+        if (i == E.screenrows / 3) {
+            char welcome[80];
+            int welcome_len =
+                snprintf(welcome, sizeof(welcome), "Hayai Editor -- version %s",
+                         HAYAI_VERSION);
+            if (welcome_len > E.screencols) {
+                welcome_len = E.screencols;
+            }
+            ab_append(ab, welcome, welcome_len);
+        } else {
+            ab_append(ab, "~", 1);
+        }
 
+        ab_append(ab, "\x1b[K", 3);
         if (i < E.screenrows - 1) {
             ab_append(ab, "\r\n", 2);
         }
@@ -152,11 +167,14 @@ void editor_draw_rows(struct abuf* ab) {
 
 void editor_refresh_screen() {
     struct abuf ab = ABUF_INIT;
-    ab_append(&ab, "\x1b[2J", 4);
+
+    ab_append(&ab, "\x1b[?25l", 6);  // hide cursor before refreshing screen
+    // ab_append(&ab, "\x1b[2J", 4);
     ab_append(&ab, "\x1b[H", 3);
 
     editor_draw_rows(&ab);
     ab_append(&ab, "\x1b[H", 3);
+    ab_append(&ab, "\x1b[?25h", 6);  // show cursor after refreshing screen
 
     write(STDOUT_FILENO, ab.b, ab.len);
     ab_free(&ab);
