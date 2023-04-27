@@ -8,16 +8,24 @@
 #include <termios.h>
 #include <unistd.h>
 
-/* DEFINES */
+/* DEFINES / ENUMS */
 
 // Converts ASCII character k into ASCII character equivalent to keypress CTRL+k
 #define CTRL_KEY(k) ((k)&0x1f)
 
 #define HAYAI_VERSION "0.0.1"
 
+enum editor_key {
+    ARROW_LEFT = 'a',
+    ARROW_RIGHT = 'd',
+    ARROW_UP = 'w',
+    ARROW_DOWN = 's'
+};
+
 /* DATA */
 
 struct editor_config {
+    int cx, cy;
     int screenrows, screencols;
     struct termios orig_termios;
 };
@@ -69,6 +77,30 @@ char editor_read_key() {
         if (nread == -1 && errno != EAGAIN) {
             die("read");
         }
+    }
+
+    if (c == '\x1b') {
+        char seq[3];
+        if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+            return '\x1b';
+        }
+        if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+            return '\x1b';
+        }
+
+        if (seq[0] == '[') {
+            switch (seq[1]) {
+                case 'A':
+                    return ARROW_UP;
+                case 'B':
+                    return ARROW_DOWN;
+                case 'C':
+                    return ARROW_RIGHT;
+                case 'D':
+                    return ARROW_LEFT;
+            }
+        }
+        return '\x1b';
     }
     return c;
 }
@@ -180,11 +212,15 @@ void editor_refresh_screen() {
     struct abuf ab = ABUF_INIT;
 
     ab_append(&ab, "\x1b[?25l", 6);  // hide cursor before refreshing screen
-    // ab_append(&ab, "\x1b[2J", 4);
     ab_append(&ab, "\x1b[H", 3);
 
     editor_draw_rows(&ab);
-    ab_append(&ab, "\x1b[H", 3);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1,
+             E.cx + 1);  // add one to convert to terminal's 1 index positions
+    ab_append(&ab, buf, strlen(buf));
+
     ab_append(&ab, "\x1b[?25h", 6);  // show cursor after refreshing screen
 
     write(STDOUT_FILENO, ab.b, ab.len);
@@ -192,6 +228,23 @@ void editor_refresh_screen() {
 }
 
 /* INPUT FUNCTIONS */
+
+void editor_move_key(char key) {
+    switch (key) {
+        case ARROW_UP:
+            E.cy--;
+            break;
+        case ARROW_LEFT:
+            E.cx--;
+            break;
+        case ARROW_DOWN:
+            E.cy++;
+            break;
+        case ARROW_RIGHT:
+            E.cx++;
+            break;
+    }
+}
 
 void editor_process_key() {
     char c = editor_read_key();
@@ -201,11 +254,20 @@ void editor_process_key() {
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
             break;
+
+        case 'w':
+        case 'a':
+        case 's':
+        case 'd':
+            editor_move_key(c);
+            break;
     }
 }
 
 /* INIT */
 void editor_init() {
+    E.cx = 0;
+    E.cy = 0;
     if (get_window_size(&E.screenrows, &E.screencols) == -1) {
         die("get_window_size");
     }
