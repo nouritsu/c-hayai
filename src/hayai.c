@@ -16,10 +16,10 @@
 #define HAYAI_VERSION "0.0.1"
 
 enum editor_key {
-    ARROW_LEFT = 'a',
-    ARROW_RIGHT = 'd',
-    ARROW_UP = 'w',
-    ARROW_DOWN = 's'
+    ARROW_LEFT = 1000,
+    ARROW_RIGHT,
+    ARROW_UP,
+    ARROW_DOWN,
 };
 
 /* DATA */
@@ -69,7 +69,7 @@ void enable_raw_mode() {
     }
 }
 
-char editor_read_key() {
+int editor_read_key() {
     int nread;
     char c;
 
@@ -229,25 +229,25 @@ void editor_refresh_screen() {
 
 /* INPUT FUNCTIONS */
 
-void editor_move_key(char key) {
+void editor_move_cursor(int key) {
     switch (key) {
         case ARROW_UP:
-            E.cy--;
+            if (E.cy > 0) E.cy--;
             break;
         case ARROW_LEFT:
-            E.cx--;
+            if (E.cx > 0) E.cx--;
             break;
         case ARROW_DOWN:
-            E.cy++;
+            if (E.cy < E.screenrows - 1) E.cy++;
             break;
         case ARROW_RIGHT:
-            E.cx++;
+            if (E.cx < E.screencols - 1) E.cx++;
             break;
     }
 }
 
 void editor_process_key() {
-    char c = editor_read_key();
+    int c = editor_read_key();
     switch (c) {
         case CTRL_KEY('q'):
             write(STDOUT_FILENO, "\x1b[2J", 4);
@@ -255,11 +255,11 @@ void editor_process_key() {
             exit(0);
             break;
 
-        case 'w':
-        case 'a':
-        case 's':
-        case 'd':
-            editor_move_key(c);
+        case ARROW_UP:
+        case ARROW_DOWN:
+        case ARROW_LEFT:
+        case ARROW_RIGHT:
+            editor_move_cursor(c);
             break;
     }
 }
