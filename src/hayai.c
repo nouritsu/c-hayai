@@ -20,6 +20,10 @@ enum editor_key {
     ARROW_RIGHT,
     ARROW_UP,
     ARROW_DOWN,
+    HOME,
+    END,
+    PAGE_UP,
+    PAGE_DOWN,
 };
 
 /* DATA */
@@ -89,20 +93,54 @@ int editor_read_key() {
         }
 
         if (seq[0] == '[') {
+            if (seq[1] >= '0' && seq[1] <= '9') {  // Page Up & Down
+                if (read(STDIN_FILENO, &seq[2], 1) != 1) {
+                    return '\x1b';
+                }
+                if (seq[2] == '~') {
+                    switch (seq[1]) {
+                        case '1':
+                            return HOME;
+                        case '4':
+                            return END;
+                        case '5':
+                            return PAGE_UP;
+                        case '6':
+                            return PAGE_DOWN;
+                        case '7':
+                            return HOME;
+                        case '8':
+                            return END;
+                    }
+                }
+            } else {
+                switch (seq[1]) {  // Arrow keys
+                    case 'A':
+                        return ARROW_UP;
+                    case 'B':
+                        return ARROW_DOWN;
+                    case 'C':
+                        return ARROW_RIGHT;
+                    case 'D':
+                        return ARROW_LEFT;
+                    case 'F':
+                        return END;
+                    case 'H':
+                        return HOME;
+                }
+            }
+        } else if (seq[0] == 'O') {
             switch (seq[1]) {
-                case 'A':
-                    return ARROW_UP;
-                case 'B':
-                    return ARROW_DOWN;
-                case 'C':
-                    return ARROW_RIGHT;
-                case 'D':
-                    return ARROW_LEFT;
+                case 'H':
+                    return HOME;
+                case 'F':
+                    return END;
             }
         }
         return '\x1b';
+    } else {
+        return c;
     }
-    return c;
 }
 
 int get_cursor_pos(int* rows, int* cols) {
@@ -254,6 +292,21 @@ void editor_process_key() {
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
             break;
+
+        case HOME:
+            E.cx = 0;
+            break;
+        case END:
+            E.cx = E.screencols - 1;
+            break;
+
+        case PAGE_UP:
+        case PAGE_DOWN: {  // Scope to get rid of warning
+            int times = E.screenrows;
+            while (times--) {
+                editor_move_cursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+            }
+        } break;
 
         case ARROW_UP:
         case ARROW_DOWN:
