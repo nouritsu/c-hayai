@@ -29,5 +29,5 @@ Arrow keys, PageUp, PageDown, Home and End can be used to navigate files.
 
 ### Exit
 Press Control + Q to exit.  
-SIGINT has been turned off, so Control + C WILL NOT make the program exit.  
-SIGTSTP has been turned off too, so program cannot be run as a background task.  
+* SIGINT has been turned off, so Control + C WILL NOT make the program exit.  
+* SIGTSTP has been turned off too, so program cannot be run as a background task.  
