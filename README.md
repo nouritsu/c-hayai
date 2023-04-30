@@ -1,5 +1,6 @@
 # About
-A simple text editor written in C.
+A simple text editor written in C.  
+The name comes from the Japanese word 速い (hayai) which means fast or swift.  
 
 # Usage
 
