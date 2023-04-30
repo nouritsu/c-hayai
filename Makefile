@@ -1,5 +1,5 @@
-build: ./src/hayai.c
-	$(CC) ./src/hayai.c -o ./bin/hayai -Wall -Wextra -pedantic -std=c99
+build: ./src/hayai.c ./src/abuf.c
+	$(CC) ./src/*.c -o ./bin/hayai -Wall -Wextra -pedantic -std=c99
 
 run: build
 	./bin/hayai 
