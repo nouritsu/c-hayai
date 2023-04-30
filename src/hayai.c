@@ -1,10 +1,15 @@
 /* INCLUDES */
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -16,7 +21,7 @@
 #define HAYAI_VERSION "0.0.1"
 
 enum editor_key {
-    ARROW_LEFT = 1000,
+    ARROW_LEFT = 1000,  // Any value of of range of char
     ARROW_RIGHT,
     ARROW_UP,
     ARROW_DOWN,
@@ -29,9 +34,16 @@ enum editor_key {
 
 /* DATA */
 
+typedef struct erow {
+    int size;
+    char* chars;
+} erow;
+
 struct editor_config {
     int cx, cy;
     int screenrows, screencols;
+    int numrows;
+    erow row;
     struct termios orig_termios;
 };
 
@@ -192,6 +204,34 @@ int get_window_size(int* rows, int* cols) {
     }
 }
 
+/* FILE I/O */
+
+void editor_open(char* fname) {
+    FILE* fp = fopen(fname, "r");
+    if (!fp) {
+        die("fopen");
+    }
+
+    char* line = NULL;
+    size_t line_cap = 0;
+    ssize_t line_len;
+    line_len = getline(&line, &line_cap, fp);
+    if (line_len != -1) {
+        while (line_len > 0 &&
+               (line[line_len - 1] == '\n' || line[line_len - 1] == '\r')) {
+            line_len--;
+        }
+
+        E.row.size = line_len;
+        E.row.chars = malloc(line_len + 1);
+        memcpy(E.row.chars, line, line_len);
+        E.row.chars[line_len] = '\0';
+        E.numrows = 1;
+    }
+    free(line);
+    fclose(fp);
+}
+
 /* APPEND BUFFER */
 
 struct abuf {
@@ -218,28 +258,37 @@ void ab_free(struct abuf* ab) { free(ab->b); }
 /* OUTPUT FUNCTIONS */
 void editor_draw_rows(struct abuf* ab) {
     for (int i = 0; i < E.screenrows; i++) {
-        if (i == E.screenrows / 3) {
-            char welcome[80];
-            int welcome_len =
-                snprintf(welcome, sizeof(welcome), "Hayai Editor -- version %s",
-                         HAYAI_VERSION);
-            if (welcome_len > E.screencols) {
-                welcome_len = E.screencols;
-            }
+        if (i >= E.numrows) {
+            if (i == E.screenrows / 3 && E.numrows == 0) {
+                char welcome[80];
+                int welcome_len =
+                    snprintf(welcome, sizeof(welcome),
+                             "Hayai Editor -- version %s", HAYAI_VERSION);
+                if (welcome_len > E.screencols) {
+                    welcome_len = E.screencols;
+                }
 
-            // Padding
-            int padding = (E.screencols - welcome_len) / 2;
-            if (padding != 0) {  // Add ~ at start of line if padding required
+                // Padding
+                int padding = (E.screencols - welcome_len) / 2;
+                if (padding !=
+                    0) {  // Add ~ at start of line if padding required
+                    ab_append(ab, "~", 1);
+                    padding--;
+                }
+                while (padding--) {
+                    ab_append(ab, " ", 1);  // pad
+                }
+
+                ab_append(ab, welcome, welcome_len);
+            } else {
                 ab_append(ab, "~", 1);
-                padding--;
             }
-            while (padding--) {
-                ab_append(ab, " ", 1);  // pad
-            }
-
-            ab_append(ab, welcome, welcome_len);
         } else {
-            ab_append(ab, "~", 1);
+            int len = E.row.size;
+            if (len > E.screencols) {
+                len = E.screencols;
+            }
+            ab_append(ab, E.row.chars, len);
         }
 
         ab_append(ab, "\x1b[K", 3);
@@ -324,6 +373,7 @@ void editor_process_key() {
 void editor_init() {
     E.cx = 0;
     E.cy = 0;
+    E.numrows = 0;
     if (get_window_size(&E.screenrows, &E.screencols) == -1) {
         die("get_window_size");
     }
@@ -331,9 +381,12 @@ void editor_init() {
 
 /* MAIN */
 
-int main() {
+int main(int argc, char** argv) {
     enable_raw_mode();
     editor_init();
+    if (argc >= 2) {
+        editor_open(argv[1]);
+    }
 
     while (1) {  // Main Loop
         editor_refresh_screen();
