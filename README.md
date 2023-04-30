@@ -25,3 +25,8 @@ Arrow keys, PageUp, PageDown, Home and End can be used to navigate files.
 * Arrow keys work as intended.  
 * PageUp and PageDown go up/down one terminal height worth of lines.  
 * Home and End go to start or end of line.
+
+### Exit
+Press Control + Q to exit.  
+SIGINT has been turned off, so Control + C WILL NOT make the program exit.  
+SIGTSTP has been turned off too, so program cannot be run as a background task.  
