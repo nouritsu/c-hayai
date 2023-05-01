@@ -43,6 +43,7 @@ typedef struct erow {
 
 struct editor_config {
     int cx, cy;
+    int rx;
     int rowoff, coloff;
     int screenrows, screencols;
     int numrows;
@@ -209,6 +210,17 @@ int get_window_size(int* rows, int* cols) {
 
 /* ROW OPERATIONS */
 
+int editor_cx_to_rx(erow* row, int cx) {
+    int rx = 0;
+    for (int i = 0; i < cx; i++) {
+        if (row->chars[i] == '\t') {
+            rx += (HAYAI_TAB_STOP - 1) - (rx % HAYAI_TAB_STOP);
+        }
+        rx++;
+    }
+    return rx;
+}
+
 void editor_update_row(erow* row) {
     int tabs = 0;
     for (int i = 0; i < row->size; i++) {  // Count tabs
@@ -275,18 +287,24 @@ void editor_open(char* fname) {
 }
 
 /* OUTPUT FUNCTIONS */
-void editor_scroll() {      // adjusts cursor if it moves out of window
+
+void editor_scroll() {  // adjusts cursor if it moves out of window
+    E.rx = 0;
+    if (E.cy < E.numrows) {
+        E.rx = editor_cx_to_rx(&E.row[E.cy], E.cx);
+    }
+
     if (E.cy < E.rowoff) {  // past top
         E.rowoff = E.cy;
     }
     if (E.cy >= E.rowoff + E.screenrows) {  // past bottom
         E.rowoff = E.cy - E.screenrows + 1;
     }
-    if (E.cx < E.coloff) {  // past left
-        E.coloff = E.cx;
+    if (E.rx < E.coloff) {  // past left
+        E.coloff = E.rx;
     }
-    if (E.cx >= E.coloff + E.screencols) {  // past right
-        E.coloff = E.cx - E.screencols + 1;
+    if (E.rx >= E.coloff + E.screencols) {  // past right
+        E.coloff = E.rx - E.screencols + 1;
     }
 }
 
@@ -330,9 +348,7 @@ void editor_draw_rows(struct abuf* ab) {
         }
 
         ab_append(ab, "\x1b[K", 3);
-        if (i < E.screenrows - 1) {
-            ab_append(ab, "\r\n", 2);
-        }
+        ab_append(ab, "\r\n", 2);
     }
 }
 
@@ -348,7 +364,7 @@ void editor_refresh_screen() {
 
     char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1,
-             (E.cx - E.coloff) +
+             (E.rx - E.coloff) +
                  1);  // add one to convert to terminal's 1 index positions
     ab_append(&ab, buf, strlen(buf));
 
@@ -409,11 +425,20 @@ void editor_process_key() {
             E.cx = 0;
             break;
         case END_KEY:
-            E.cx = E.screencols - 1;
+            if (E.cy < E.numrows) {
+                E.cx = E.row[E.cy].size;
+            }
             break;
 
         case PAGE_UP:
         case PAGE_DOWN: {  // Scope to get rid of warning
+            if (c == PAGE_UP) {
+                E.cy = E.rowoff;
+            } else if (c == PAGE_DOWN) {
+                E.cy = E.rowoff + E.screenrows - 1;
+                if (E.cy > E.numrows) E.cy = E.numrows;
+            }
+
             int times = E.screenrows;
             while (times--) {
                 editor_move_cursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
@@ -433,6 +458,7 @@ void editor_process_key() {
 void editor_init() {
     E.cx = 0;
     E.cy = 0;
+    E.rx = 0;
     E.numrows = 0;
     E.rowoff = 0;
     E.coloff = 0;
@@ -440,6 +466,7 @@ void editor_init() {
     if (get_window_size(&E.screenrows, &E.screencols) == -1) {
         die("get_window_size");
     }
+    E.screenrows -= 1;  // space for status bar
 }
 
 /* MAIN */
