@@ -19,8 +19,8 @@
 
 // Converts ASCII character k into ASCII character equivalent to keypress CTRL+k
 #define CTRL_KEY(k) ((k)&0x1f)
-
 #define HAYAI_VERSION "0.0.1"
+#define HAYAI_TAB_STOP 8
 
 enum editor_key {
     ARROW_LEFT = 1000,  // Any value of of range of char
@@ -37,8 +37,8 @@ enum editor_key {
 /* DATA */
 
 typedef struct erow {
-    int size;
-    char* chars;
+    int size, rsize;
+    char *chars, *render;
 } erow;
 
 struct editor_config {
@@ -209,6 +209,33 @@ int get_window_size(int* rows, int* cols) {
 
 /* ROW OPERATIONS */
 
+void editor_update_row(erow* row) {
+    int tabs = 0;
+    for (int i = 0; i < row->size; i++) {  // Count tabs
+        if (row->chars[i] == '\t') {
+            tabs++;
+        }
+    }
+
+    free(row->render);
+    /* Tabs are 8 characters long, 1 character out of 8 is already counted for
+       in row->size, hence tabs * 7*/
+    row->render = malloc(row->size + tabs * (HAYAI_TAB_STOP - 1) + 1);
+
+    int idx = 0;
+    for (int i = 0; i < row->size; i++) {
+        if (row->chars[i] == '\t') {
+            row->render[idx++] = ' ';
+            while (idx % HAYAI_TAB_STOP != 0) row->render[idx++] = ' ';
+        } else {
+            row->render[idx++] = row->chars[i];
+        }
+    }
+
+    row->render[idx] = '\0';
+    row->rsize = idx;
+}
+
 void editor_append_row(char* s, size_t len) {
     E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
 
@@ -217,6 +244,11 @@ void editor_append_row(char* s, size_t len) {
     E.row[at].chars = malloc(len + 1);
     memcpy(E.row[at].chars, s, len);
     E.row[at].chars[len] = '\0';
+
+    E.row[at].rsize = 0;
+    E.row[at].render = NULL;
+    editor_update_row(&E.row[at]);
+
     E.numrows++;
 }
 
@@ -287,14 +319,14 @@ void editor_draw_rows(struct abuf* ab) {
                 ab_append(ab, "~", 1);
             }
         } else {
-            int len = E.row[filerow].size - E.coloff;
+            int len = E.row[filerow].rsize - E.coloff;
             if (len < 0) {
                 len = 0;
             }
             if (len > E.screencols) {
                 len = E.screencols;
             }
-            ab_append(ab, &E.row[filerow].chars[E.coloff], len);
+            ab_append(ab, &E.row[filerow].render[E.coloff], len);
         }
 
         ab_append(ab, "\x1b[K", 3);
