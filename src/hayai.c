@@ -43,6 +43,7 @@ typedef struct erow {
 
 struct editor_config {
     int cx, cy;
+    int rowoff;
     int screenrows, screencols;
     int numrows;
     erow* row;
@@ -242,9 +243,19 @@ void editor_open(char* fname) {
 }
 
 /* OUTPUT FUNCTIONS */
+void editor_scroll() {      // adjusts cursor if it moves out of window
+    if (E.cy < E.rowoff) {  // past top
+        E.rowoff = E.cy;
+    }
+    if (E.cy >= E.rowoff + E.screenrows) {  // past bottom
+        E.rowoff = E.cy - E.screenrows + 1;
+    }
+}
+
 void editor_draw_rows(struct abuf* ab) {
     for (int i = 0; i < E.screenrows; i++) {
-        if (i >= E.numrows) {
+        int filerow = i + E.rowoff;
+        if (filerow >= E.numrows) {
             if (i == E.screenrows / 3 && E.numrows == 0) {
                 char welcome[80];
                 int welcome_len =
@@ -270,11 +281,11 @@ void editor_draw_rows(struct abuf* ab) {
                 ab_append(ab, "~", 1);
             }
         } else {
-            int len = E.row[i].size;
+            int len = E.row[filerow].size;
             if (len > E.screencols) {
                 len = E.screencols;
             }
-            ab_append(ab, E.row[i].chars, len);
+            ab_append(ab, E.row[filerow].chars, len);
         }
 
         ab_append(ab, "\x1b[K", 3);
@@ -285,6 +296,8 @@ void editor_draw_rows(struct abuf* ab) {
 }
 
 void editor_refresh_screen() {
+    editor_scroll();
+
     struct abuf ab = ABUF_INIT;
 
     ab_append(&ab, "\x1b[?25l", 6);  // hide cursor before refreshing screen
@@ -293,7 +306,7 @@ void editor_refresh_screen() {
     editor_draw_rows(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1,
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1,
              E.cx + 1);  // add one to convert to terminal's 1 index positions
     ab_append(&ab, buf, strlen(buf));
 
@@ -314,7 +327,7 @@ void editor_move_cursor(int key) {
             if (E.cx > 0) E.cx--;
             break;
         case ARROW_DOWN:
-            if (E.cy < E.screenrows - 1) E.cy++;
+            if (E.cy < E.numrows) E.cy++;
             break;
         case ARROW_RIGHT:
             if (E.cx < E.screencols - 1) E.cx++;
@@ -360,6 +373,7 @@ void editor_init() {
     E.cx = 0;
     E.cy = 0;
     E.numrows = 0;
+    E.rowoff = 0;
     E.row = NULL;
     if (get_window_size(&E.screenrows, &E.screencols) == -1) {
         die("get_window_size");
