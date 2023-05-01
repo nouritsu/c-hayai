@@ -329,19 +329,38 @@ void editor_refresh_screen() {
 /* INPUT FUNCTIONS */
 
 void editor_move_cursor(int key) {
+    erow* row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+
     switch (key) {
         case ARROW_UP:
             if (E.cy > 0) E.cy--;
             break;
         case ARROW_LEFT:
-            if (E.cx > 0) E.cx--;
+            if (E.cx > 0) {
+                E.cx--;
+            } else if (E.cy > 0) {  // move line back if cursor at start of line
+                E.cy--;
+                E.cx = E.row[E.cy].size;
+            }
             break;
         case ARROW_DOWN:
             if (E.cy < E.numrows) E.cy++;
             break;
         case ARROW_RIGHT:
-            E.cx++;
+            if (row && E.cx < row->size) {
+                E.cx++;
+            } else if (row && E.cx == row->size) {  // move to nl if at eol
+                E.cy++;
+                E.cx = 0;
+            }
             break;
+    }
+
+    row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+    int rowlen = row ? row->size : 0;
+    if (E.cx > rowlen) {  // Cursor cannot be moved past right side when moving
+                          // to new line
+        E.cx = rowlen;
     }
 }
 
