@@ -57,9 +57,10 @@ void editor_draw_statusbar(struct abuf* ab);
 void editor_draw_msgbar(struct abuf* ab);
 void editor_refresh_screen();
 void editor_set_status(const char* fmt, ...);
-char* editor_prompt(char* prompt);
+char* editor_prompt(char* prompt, void (*callback)(char*, int));
 void editor_move_cursor(int key);
 void editor_process_key();
 void editor_find();
+void editor_find_callback();
 
 #endif

@@ -290,7 +290,7 @@ void editor_open(char* fname) {
 
 void editor_save() {
     if (E.filename == NULL) {
-        E.filename = editor_prompt("Save As : %s");
+        E.filename = editor_prompt("Save As : %s", NULL);
         if (E.filename == NULL) {
             editor_set_status("Save Aborted");
             return;
@@ -451,7 +451,7 @@ void editor_set_status(const char* fmt, ...) {
 
 /* INPUT FUNCTIONS */
 
-char* editor_prompt(char* prompt) {
+char* editor_prompt(char* prompt, void (*callback)(char*, int)) {
     size_t bufsize = 128;
     char* buf = malloc(bufsize);
 
@@ -467,11 +467,13 @@ char* editor_prompt(char* prompt) {
             if (buflen != 0) buf[--buflen] = '\0';
         } else if (c == '\x1b') {
             editor_set_status("");
+            if (callback) callback(buf, c);
             free(buf);
             return NULL;
         } else if (c == '\r') {
             if (buflen != 0) {
                 editor_set_status("");
+                if (callback) callback(buf, c);
                 return buf;
             }
         } else if (!iscntrl(c) && c < 128) {
@@ -482,6 +484,7 @@ char* editor_prompt(char* prompt) {
             buf[buflen++] = c;
             buf[buflen] = '\0';
         }
+        if (callback) callback(buf, c);
     }
 }
 
@@ -605,8 +608,28 @@ void editor_process_key() {
 }
 
 void editor_find() {
-    char* query = editor_prompt("Search %s (ESC to Cancel)");
-    if (query == NULL) return;
+    int saved_cx = E.cx;
+    int saved_cy = E.cy;
+    int saved_coloff = E.coloff;
+    int saved_rowoff = E.rowoff;
+
+    char* query =
+        editor_prompt("Search %s (ESC to Cancel)", editor_find_callback);
+
+    if (query) {
+        free(query);
+    } else {
+        E.cx = saved_cx;
+        E.cy = saved_cy;
+        E.coloff = saved_coloff;
+        E.rowoff = saved_rowoff;
+    }
+}
+
+void editor_find_callback(char* query, int key) {
+    if (key == '\r' || key == '\x1b') {
+        return;
+    }
 
     for (int i = 0; i < E.numrows; i++) {
         erow* row = &E.row[i];
@@ -618,6 +641,4 @@ void editor_find() {
             break;
         }
     }
-
-    free(query);
 }
