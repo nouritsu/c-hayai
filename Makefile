@@ -1,4 +1,4 @@
-build: ./src/hayai.c ./src/abuf.c
+build: ./src/*.c
 	$(CC) ./src/*.c -I "./inc" -o ./bin/hayai -Wall -Wextra -pedantic -std=c99
 
 run: build

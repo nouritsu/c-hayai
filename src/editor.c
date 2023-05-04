@@ -1,55 +1,26 @@
-/* INCLUDES */
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
-#define _GNU_SOURCE
-
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <termios.h>
-#include <time.h>
-#include <unistd.h>
-
-#include "abuf.h"
-#include "ekey.h"
-#include "erow.h"
-#include "hayai_constants.h"
-
-/* DEFINES / ENUMS */
-
-// Converts ASCII character k into ASCII character equivalent to keypress CTRL+k
-#define CTRL_KEY(k) ((k)&0x1f)
-
-/* DATA */
-struct editor_config {
-    int cx, cy;
-    int rx;
-    int rowoff, coloff;
-    int screenrows, screencols;
-    int numrows;
-    int dirty;  // file modified but not saved flag
-    erow* row;
-    char* filename;
-    char statusmsg[80];
-    time_t statusmsg_time;
-    struct termios orig_termios;
-};
+#include "editor.h"
 
 /* GLOBALS */
 
 struct editor_config E;
 
-/* PROTOTYPES */
-
-void editor_set_status(const char* fmt, ...);
-void editor_refresh_screen();
-char* editor_prompt(char* prompt);
+void editor_init() {
+    E.cx = 0;
+    E.cy = 0;
+    E.rx = 0;
+    E.numrows = 0;
+    E.rowoff = 0;
+    E.coloff = 0;
+    E.row = NULL;
+    E.dirty = 0;
+    E.filename = NULL;
+    E.statusmsg[0] = '\0';
+    E.statusmsg_time = 0;
+    if (get_window_size(&E.screenrows, &E.screencols) == -1) {
+        die("get_window_size");
+    }
+    E.screenrows -= 2;  // space for status bar
+}
 
 /* TERMINAL FUNCTIONS */
 
@@ -699,41 +670,4 @@ void editor_process_key() {
     }
 
     quit_times = HAYAI_QUIT_TIMES;
-}
-
-/* INIT */
-void editor_init() {
-    E.cx = 0;
-    E.cy = 0;
-    E.rx = 0;
-    E.numrows = 0;
-    E.rowoff = 0;
-    E.coloff = 0;
-    E.row = NULL;
-    E.dirty = 0;
-    E.filename = NULL;
-    E.statusmsg[0] = '\0';
-    E.statusmsg_time = 0;
-    if (get_window_size(&E.screenrows, &E.screencols) == -1) {
-        die("get_window_size");
-    }
-    E.screenrows -= 2;  // space for status bar
-}
-
-/* MAIN */
-
-int main(int argc, char** argv) {
-    enable_raw_mode();
-    editor_init();
-    if (argc >= 2) {
-        editor_open(argv[1]);
-    }
-
-    editor_set_status("Ctrl-Q to Quit | Ctrl-S to Save");
-
-    while (1) {  // Main Loop
-        editor_refresh_screen();
-        editor_process_key();
-    }
-    return 0;
 }
