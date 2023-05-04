@@ -5,6 +5,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,7 @@
 #define HAYAI_TAB_STOP 8
 
 enum editor_key {
+    BACKSPACE = 127,
     ARROW_LEFT = 1000,  // Any value of of range of char
     ARROW_RIGHT,
     ARROW_UP,
@@ -269,7 +271,45 @@ void editor_append_row(char* s, size_t len) {
     E.numrows++;
 }
 
+void editor_row_insertchar(erow* row, int at, char c) {
+    if (at < 0 || at > row->size) at = row->size;     // oob check
+    row->chars = realloc(row->chars, row->size + 2);  // room for null byte
+    memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
+    row->size++;
+    row->chars[at] = c;
+    editor_update_row(row);
+}
+
+/* EDITOR OPERATIONS */
+
+void editor_insert_char(int c) {
+    if (E.cy == E.numrows) {  // At EOF
+        editor_append_row("", 0);
+    }
+    editor_row_insertchar(&E.row[E.cy], E.cx, c);
+    E.cx++;
+}
+
 /* FILE I/O */
+
+char* editor_row_to_string(int* buflen) {
+    int total_len = 0;
+    for (int i = 0; i < E.numrows; i++) {
+        total_len += E.row[i].size + 1;  //+1 for nl character
+    }
+    *buflen = total_len;
+
+    char* buf = malloc(total_len);  // function caller will free memory
+    char* p = buf;
+    for (int i = 0; i < E.numrows; i++) {
+        memcpy(p, E.row[i].chars, E.row[i].size);
+        p += E.row[i].size;
+        *p = '\n';
+        p++;
+    }
+
+    return buf;
+}
 
 void editor_open(char* fname) {
     free(E.filename);
@@ -292,6 +332,19 @@ void editor_open(char* fname) {
     }
     free(line);
     fclose(fp);
+}
+
+void editor_save() {
+    if (E.filename == NULL) return;
+
+    int len;
+    char* buf = editor_row_to_string(&len);
+
+    int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
+    ftruncate(fd, len);
+    write(fd, buf, len);
+    close(fd);
+    free(buf);
 }
 
 /* OUTPUT FUNCTIONS */
@@ -465,10 +518,18 @@ void editor_move_cursor(int key) {
 void editor_process_key() {
     int c = editor_read_key();
     switch (c) {
+        case '\r':
+            // TODO: New Line Handling
+            break;
+
         case CTRL_KEY('q'):
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
+            break;
+
+        case CTRL_KEY('s'):
+            editor_save();
             break;
 
         case HOME_KEY:
@@ -478,6 +539,12 @@ void editor_process_key() {
             if (E.cy < E.numrows) {
                 E.cx = E.row[E.cy].size;
             }
+            break;
+
+        case BACKSPACE:
+        case CTRL_KEY('h'):
+        case DEL_KEY:
+            // TODO Delete Char Handling
             break;
 
         case PAGE_UP:
@@ -500,6 +567,15 @@ void editor_process_key() {
         case ARROW_LEFT:
         case ARROW_RIGHT:
             editor_move_cursor(c);
+            break;
+
+        case CTRL_KEY('l'):
+        case '\x1b':
+            // Disabled Escape sequences and Clear Screen sequence
+            break;
+
+        default:
+            editor_insert_char(c);
             break;
     }
 }
