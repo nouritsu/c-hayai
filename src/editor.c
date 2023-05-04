@@ -323,7 +323,7 @@ void editor_save() {
 void editor_scroll() {  // adjusts cursor if it moves out of window
     E.rx = 0;
     if (E.cy < E.numrows) {
-        E.rx = row_cs_to_rx(&E.row[E.cy], E.cx);
+        E.rx = row_cx_to_rx(&E.row[E.cy], E.cx);
     }
 
     if (E.cy < E.rowoff) {  // past top
@@ -551,10 +551,15 @@ void editor_process_key() {
         case HOME_KEY:
             E.cx = 0;
             break;
+
         case END_KEY:
             if (E.cy < E.numrows) {
                 E.cx = E.row[E.cy].size;
             }
+            break;
+
+        case CTRL_KEY('f'):
+            editor_find();
             break;
 
         case BACKSPACE:
@@ -597,4 +602,22 @@ void editor_process_key() {
     }
 
     quit_times = HAYAI_QUIT_TIMES;
+}
+
+void editor_find() {
+    char* query = editor_prompt("Search %s (ESC to Cancel)");
+    if (query == NULL) return;
+
+    for (int i = 0; i < E.numrows; i++) {
+        erow* row = &E.row[i];
+        char* match = strstr(row->render, query);
+        if (match) {
+            E.cy = i;
+            E.cx = row_rx_to_cx(row, match - row->render);
+            E.rowoff = E.numrows;
+            break;
+        }
+    }
+
+    free(query);
 }

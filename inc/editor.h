@@ -48,7 +48,6 @@ void editor_insert_row(int at, char* s, size_t len);
 void editor_del_row(int at);
 void editor_insert_char(int c);
 void editor_insert_new_line();
-void editor_insert_new_line();
 char* editor_row_to_string(int* buflen);
 void editor_open(char* fname);
 void editor_save();
@@ -61,5 +60,6 @@ void editor_set_status(const char* fmt, ...);
 char* editor_prompt(char* prompt);
 void editor_move_cursor(int key);
 void editor_process_key();
+void editor_find();
 
 #endif

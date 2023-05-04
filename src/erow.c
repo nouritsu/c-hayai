@@ -62,7 +62,7 @@ void row_free(erow* row) {
     free(row->chars);
 }
 
-int row_cs_to_rx(erow* row, int cx) {
+int row_cx_to_rx(erow* row, int cx) {
     int rx = 0;
     for (int i = 0; i < cx; i++) {
         if (row->chars[i] == '\t') {
@@ -71,4 +71,19 @@ int row_cs_to_rx(erow* row, int cx) {
         rx++;
     }
     return rx;
+}
+
+int row_rx_to_cx(erow* row, int rx) {
+    int cur_rx = 0;
+
+    int cx;
+    for (cx = 0; cx < row->size; cx++) {
+        if (row->chars[cx] == '\t') {
+            cur_rx += (HAYAI_TAB_STOP - 1) - (cur_rx % HAYAI_TAB_STOP);
+        }
+        cur_rx++;
+
+        if (cur_rx > rx) return cx;
+    }
+    return cx;
 }

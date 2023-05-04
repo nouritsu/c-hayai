@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
         editor_open(argv[1]);
     }
 
-    editor_set_status("Ctrl-Q to Quit | Ctrl-S to Save");
+    editor_set_status("Ctrl-Q to Quit | Ctrl-S to Save | Ctrl-F to Find");
 
     while (1) {  // Main Loop
         editor_refresh_screen();
