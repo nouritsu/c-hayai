@@ -17,6 +17,8 @@
 #include <unistd.h>
 
 #include "./abuf.h"
+#include "./ekey.h"
+#include "./erow.h"
 #include "./hayai_constants.h"
 
 /* DEFINES / ENUMS */
@@ -24,26 +26,7 @@
 // Converts ASCII character k into ASCII character equivalent to keypress CTRL+k
 #define CTRL_KEY(k) ((k)&0x1f)
 
-enum editor_key {
-    BACKSPACE = 127,
-    ARROW_LEFT = 1000,  // Any value of of range of char
-    ARROW_RIGHT,
-    ARROW_UP,
-    ARROW_DOWN,
-    HOME_KEY,
-    END_KEY,
-    DEL_KEY,
-    PAGE_UP,
-    PAGE_DOWN,
-};
-
 /* DATA */
-
-typedef struct erow {
-    int size, rsize;
-    char *chars, *render;
-} erow;
-
 struct editor_config {
     int cx, cy;
     int rx;
