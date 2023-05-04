@@ -1,7 +1,5 @@
 #include "editor.h"
 
-/* GLOBALS */
-
 struct editor_config E;
 
 void editor_init() {
@@ -177,44 +175,6 @@ int get_window_size(int* rows, int* cols) {
 
 /* ROW OPERATIONS */
 
-int editor_cx_to_rx(erow* row, int cx) {
-    int rx = 0;
-    for (int i = 0; i < cx; i++) {
-        if (row->chars[i] == '\t') {
-            rx += (HAYAI_TAB_STOP - 1) - (rx % HAYAI_TAB_STOP);
-        }
-        rx++;
-    }
-    return rx;
-}
-
-void editor_update_row(erow* row) {
-    int tabs = 0;
-    for (int i = 0; i < row->size; i++) {  // Count tabs
-        if (row->chars[i] == '\t') {
-            tabs++;
-        }
-    }
-
-    free(row->render);
-    /* Tabs are 8 characters long, 1 character out of 8 is already counted for
-       in row->size, hence tabs * 7*/
-    row->render = malloc(row->size + tabs * (HAYAI_TAB_STOP - 1) + 1);
-
-    int idx = 0;
-    for (int i = 0; i < row->size; i++) {
-        if (row->chars[i] == '\t') {
-            row->render[idx++] = ' ';
-            while (idx % HAYAI_TAB_STOP != 0) row->render[idx++] = ' ';
-        } else {
-            row->render[idx++] = row->chars[i];
-        }
-    }
-
-    row->render[idx] = '\0';
-    row->rsize = idx;
-}
-
 void editor_insert_row(int at, char* s, size_t len) {
     if (at < 0 || at > E.numrows) return;
 
@@ -228,50 +188,17 @@ void editor_insert_row(int at, char* s, size_t len) {
 
     E.row[at].rsize = 0;
     E.row[at].render = NULL;
-    editor_update_row(&E.row[at]);
+    row_update(&E.row[at]);
 
     E.numrows++;
     E.dirty++;
 }
 
-void editor_free_row(erow* row) {
-    free(row->render);
-    free(row->chars);
-}
-
 void editor_del_row(int at) {
     if (at < 0 || at >= E.numrows) at = E.numrows;
-    editor_free_row(&E.row[at]);
+    row_free(&E.row[at]);
     memmove(&E.row[at], &E.row[at + 1], sizeof(erow) * (E.numrows - at - 1));
     E.numrows--;
-    E.dirty++;
-}
-
-void editor_row_insert_char(erow* row, int at, char c) {
-    if (at < 0 || at > row->size) at = row->size;     // oob check
-    row->chars = realloc(row->chars, row->size + 2);  // room for null byte
-    memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
-    row->size++;
-    row->chars[at] = c;
-    editor_update_row(row);
-
-    E.dirty++;
-}
-
-void editor_row_append_string(erow* row, char* s, size_t len) {
-    row->chars = realloc(row->chars, row->size + len + 1);
-    memcpy(&row->chars[row->size], s, len);
-    row->size += len;
-    row->chars[row->size] = '\0';
-    editor_update_row(row);
-    E.dirty++;
-}
-
-void editor_row_delete_char(erow* row, int at) {
-    if (at < 0 || at >= row->size) return;
-    memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
-    row->size--;
-    editor_update_row(row);
     E.dirty++;
 }
 
@@ -281,7 +208,7 @@ void editor_insert_char(int c) {
     if (E.cy == E.numrows) {  // At EOF
         editor_insert_row(E.numrows, "", 0);
     }
-    editor_row_insert_char(&E.row[E.cy], E.cx, c);
+    row_insert_char(&E.row[E.cy], E.cx, c, &E.dirty);
     E.cx++;
 }
 
@@ -294,7 +221,7 @@ void editor_insert_new_line() {
         row = &E.row[E.cy];
         row->size = E.cx;
         row->chars[row->size] = '\0';
-        editor_update_row(row);
+        row_update(row);
     }
     E.cy++;
     E.cx = 0;
@@ -306,11 +233,11 @@ void editor_del_char() {
 
     erow* row = &E.row[E.cy];
     if (E.cx > 0) {
-        editor_row_delete_char(row, E.cx - 1);
+        row_delete_char(row, E.cx - 1, &E.dirty);
         E.cx--;
     } else {
         E.cx = E.row[E.cy - 1].size;
-        editor_row_append_string(&E.row[E.cy - 1], row->chars, row->size);
+        row_append_string(&E.row[E.cy - 1], row->chars, row->size, &E.dirty);
         editor_del_row(E.cy);
         E.cy--;
     }
@@ -396,7 +323,7 @@ void editor_save() {
 void editor_scroll() {  // adjusts cursor if it moves out of window
     E.rx = 0;
     if (E.cy < E.numrows) {
-        E.rx = editor_cx_to_rx(&E.row[E.cy], E.cx);
+        E.rx = row_cs_to_rx(&E.row[E.cy], E.cx);
     }
 
     if (E.cy < E.rowoff) {  // past top

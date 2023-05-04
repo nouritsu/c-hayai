@@ -1,9 +1,3 @@
-#include "abuf.h"
-#include "ekey.h"
-#include "erow.h"
-#include "hayai_constants.h"
-#include "hayai_macros.h"
-
 #define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 #define _GNU_SOURCE
@@ -19,6 +13,12 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "abuf.h"
+#include "ekey.h"
+#include "erow.h"
+#include "hayai_constants.h"
+#include "hayai_macros.h"
 
 struct editor_config {
     int cx, cy;
@@ -41,14 +41,8 @@ void enable_raw_mode();
 int editor_read_key();
 int get_cursor_pos(int* rows, int* cols);
 int get_window_size(int* rows, int* cols);
-int editor_cx_to_rx(erow* row, int cx);
-void editor_update_row(erow* row);
 void editor_insert_row(int at, char* s, size_t len);
-void editor_free_row(erow* row);
 void editor_del_row(int at);
-void editor_row_insert_char(erow* row, int at, char c);
-void editor_row_append_string(erow* row, char* s, size_t len);
-void editor_row_delete_char(erow* row, int at);
 void editor_insert_char(int c);
 void editor_insert_new_line();
 void editor_insert_new_line();

@@ -1,3 +1,6 @@
+#ifndef EKEY_H
+#define EKEY_H
+
 enum ekey {
     BACKSPACE = 127,
     ARROW_LEFT = 1000,  // Any value of of range of char
@@ -10,3 +13,5 @@ enum ekey {
     PAGE_UP,
     PAGE_DOWN,
 };
+
+#endif

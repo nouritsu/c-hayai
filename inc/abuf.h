@@ -1,5 +1,5 @@
-#ifndef _ABUF_H
-#define _ABUF_H
+#ifndef ABUF_H
+#define ABUF_H
 
 struct abuf {
     char* b;
