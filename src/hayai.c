@@ -24,6 +24,7 @@
 #define CTRL_KEY(k) ((k)&0x1f)
 #define HAYAI_VERSION "0.0.1"
 #define HAYAI_TAB_STOP 8
+#define HAYAI_QUIT_TIMES 3
 
 enum editor_key {
     BACKSPACE = 127,
@@ -51,6 +52,7 @@ struct editor_config {
     int rowoff, coloff;
     int screenrows, screencols;
     int numrows;
+    int dirty;  // file modified but not saved flag
     erow* row;
     char* filename;
     char statusmsg[80];
@@ -61,6 +63,10 @@ struct editor_config {
 /* GLOBALS */
 
 struct editor_config E;
+
+/* PROTOTYPES */
+
+void editor_set_status(const char* fmt, ...);
 
 /* TERMINAL FUNCTIONS */
 
@@ -269,15 +275,26 @@ void editor_append_row(char* s, size_t len) {
     editor_update_row(&E.row[at]);
 
     E.numrows++;
+    E.dirty++;
 }
 
-void editor_row_insertchar(erow* row, int at, char c) {
+void editor_row_insert_char(erow* row, int at, char c) {
     if (at < 0 || at > row->size) at = row->size;     // oob check
     row->chars = realloc(row->chars, row->size + 2);  // room for null byte
     memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
     row->size++;
     row->chars[at] = c;
     editor_update_row(row);
+
+    E.dirty++;
+}
+
+void editor_row_delete_char(erow* row, int at) {
+    if (at < 0 || at >= row->size) return;
+    memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
+    row->size--;
+    editor_update_row(row);
+    E.dirty++;
 }
 
 /* EDITOR OPERATIONS */
@@ -286,8 +303,20 @@ void editor_insert_char(int c) {
     if (E.cy == E.numrows) {  // At EOF
         editor_append_row("", 0);
     }
-    editor_row_insertchar(&E.row[E.cy], E.cx, c);
+    editor_row_insert_char(&E.row[E.cy], E.cx, c);
     E.cx++;
+}
+
+void editor_del_char() {
+    if (E.cy == E.numrows) {
+        return;
+    }
+
+    erow* row = &E.row[E.cy];
+    if (E.cx > 0) {
+        editor_row_delete_char(row);
+        E.cx--;
+    }
 }
 
 /* FILE I/O */
@@ -332,6 +361,7 @@ void editor_open(char* fname) {
     }
     free(line);
     fclose(fp);
+    E.dirty = 0;
 }
 
 void editor_save() {
@@ -341,10 +371,21 @@ void editor_save() {
     char* buf = editor_row_to_string(&len);
 
     int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
-    ftruncate(fd, len);
-    write(fd, buf, len);
-    close(fd);
+    if (fd != -1) {
+        if (ftruncate(fd, len) != -1) {
+            if (write(fd, buf, len) == len) {
+                close(fd);
+                free(buf);
+                E.dirty = 0;
+                editor_set_status("%d bytes written to disk", len);
+                return;
+            }
+        }
+        close(fd);
+    }
+
     free(buf);
+    editor_set_status("Unable to save! I/O Error: %s", strerror(errno));
 }
 
 /* OUTPUT FUNCTIONS */
@@ -417,8 +458,9 @@ void editor_draw_statusbar(struct abuf* ab) {
     ab_append(ab, "\x1b[7m", 4);  // invert colours
 
     char status[80], rstatus[80];
-    int len = snprintf(status, sizeof(status), "%.20s - %d lines",
-                       E.filename ? E.filename : "[No Name]", E.numrows);
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
+                       E.filename ? E.filename : "[No Name]", E.numrows,
+                       E.dirty ? "[Modified]" : "");
     int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", E.cy + 1, E.numrows);
     if (len > E.screencols) len = E.screencols;
     ab_append(ab, status, len);
@@ -516,6 +558,8 @@ void editor_move_cursor(int key) {
 }
 
 void editor_process_key() {
+    static int quit_times = HAYAI_QUIT_TIMES;
+
     int c = editor_read_key();
     switch (c) {
         case '\r':
@@ -523,6 +567,14 @@ void editor_process_key() {
             break;
 
         case CTRL_KEY('q'):
+            if (E.dirty && quit_times > 0) {
+                editor_set_status(
+                    "WARNING: File has unsaved changes. Press Ctrl + Q %d "
+                    "times to quit.",
+                    quit_times);
+                quit_times--;
+                return;
+            }
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
@@ -544,7 +596,8 @@ void editor_process_key() {
         case BACKSPACE:
         case CTRL_KEY('h'):
         case DEL_KEY:
-            // TODO Delete Char Handling
+            if (c == DEL_KEY) editor_move_cursor(ARROW_RIGHT);
+            editor_del_char();
             break;
 
         case PAGE_UP:
@@ -578,6 +631,8 @@ void editor_process_key() {
             editor_insert_char(c);
             break;
     }
+
+    quit_times = HAYAI_QUIT_TIMES;
 }
 
 /* INIT */
@@ -589,6 +644,7 @@ void editor_init() {
     E.rowoff = 0;
     E.coloff = 0;
     E.row = NULL;
+    E.dirty = 0;
     E.filename = NULL;
     E.statusmsg[0] = '\0';
     E.statusmsg_time = 0;
@@ -607,7 +663,7 @@ int main(int argc, char** argv) {
         editor_open(argv[1]);
     }
 
-    editor_set_status("Press Ctrl-Q to Quit");
+    editor_set_status("Ctrl-Q to Quit | Ctrl-S to Save");
 
     while (1) {  // Main Loop
         editor_refresh_screen();
