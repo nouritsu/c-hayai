@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "./abuf.h"
+#include "./hayai_constants.h"
 
 /* DEFINES / ENUMS */
 
