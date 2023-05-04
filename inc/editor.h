@@ -20,6 +20,9 @@
 #include "hayai_constants.h"
 #include "hayai_macros.h"
 
+#ifndef EDITOR_H
+#define EDITOR_H
+
 struct editor_config {
     int cx, cy;
     int rx;
@@ -58,3 +61,5 @@ void editor_set_status(const char* fmt, ...);
 char* editor_prompt(char* prompt);
 void editor_move_cursor(int key);
 void editor_process_key();
+
+#endif
