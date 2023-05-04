@@ -278,6 +278,19 @@ void editor_append_row(char* s, size_t len) {
     E.dirty++;
 }
 
+void editor_free_row(erow* row) {
+    free(row->render);
+    free(row->chars);
+}
+
+void editor_del_row(int at) {
+    if (at < 0 || at >= E.numrows) at = E.numrows;
+    editor_free_row(&E.row[at]);
+    memmove(&E.row[at], &E.row[at + 1], sizeof(erow) * (E.numrows - at - 1));
+    E.numrows--;
+    E.dirty++;
+}
+
 void editor_row_insert_char(erow* row, int at, char c) {
     if (at < 0 || at > row->size) at = row->size;     // oob check
     row->chars = realloc(row->chars, row->size + 2);  // room for null byte
@@ -286,6 +299,15 @@ void editor_row_insert_char(erow* row, int at, char c) {
     row->chars[at] = c;
     editor_update_row(row);
 
+    E.dirty++;
+}
+
+void editor_row_append_string(erow* row, char* s, size_t len) {
+    row->chars = realloc(row->chars, row->size + len + 1);
+    memcpy(&row->chars[row->size], s, len);
+    row->size += len;
+    row->chars[row->size] = '\0';
+    editor_update_row(row);
     E.dirty++;
 }
 
@@ -308,14 +330,18 @@ void editor_insert_char(int c) {
 }
 
 void editor_del_char() {
-    if (E.cy == E.numrows) {
-        return;
-    }
+    if (E.cy == E.numrows) return;
+    if (E.cx == 0 && E.cy == 0) return;
 
     erow* row = &E.row[E.cy];
     if (E.cx > 0) {
-        editor_row_delete_char(row);
+        editor_row_delete_char(row, E.cx - 1);
         E.cx--;
+    } else {
+        E.cx = E.row[E.cy - 1].size;
+        editor_row_append_string(&E.row[E.cy - 1], row->chars, row->size);
+        editor_del_row(E.cy);
+        E.cy--;
     }
 }
 
