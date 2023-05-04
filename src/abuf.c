@@ -1,4 +1,4 @@
-#include "./abuf.h"
+#include "abuf.h"
 
 #include <stdlib.h>
 #include <string.h>

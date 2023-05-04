@@ -16,10 +16,10 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "./abuf.h"
-#include "./ekey.h"
-#include "./erow.h"
-#include "./hayai_constants.h"
+#include "abuf.h"
+#include "ekey.h"
+#include "erow.h"
+#include "hayai_constants.h"
 
 /* DEFINES / ENUMS */
 
