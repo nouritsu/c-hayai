@@ -67,6 +67,8 @@ struct editor_config E;
 /* PROTOTYPES */
 
 void editor_set_status(const char* fmt, ...);
+void editor_refresh_screen();
+char* editor_prompt(char* prompt);
 
 /* TERMINAL FUNCTIONS */
 
@@ -261,10 +263,12 @@ void editor_update_row(erow* row) {
     row->rsize = idx;
 }
 
-void editor_append_row(char* s, size_t len) {
-    E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
+void editor_insert_row(int at, char* s, size_t len) {
+    if (at < 0 || at > E.numrows) return;
 
-    int at = E.numrows;
+    E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
+    memmove(&E.row[at + 1], &E.row[at], sizeof(erow) * (E.numrows - at));
+
     E.row[at].size = len;
     E.row[at].chars = malloc(len + 1);
     memcpy(E.row[at].chars, s, len);
@@ -323,10 +327,25 @@ void editor_row_delete_char(erow* row, int at) {
 
 void editor_insert_char(int c) {
     if (E.cy == E.numrows) {  // At EOF
-        editor_append_row("", 0);
+        editor_insert_row(E.numrows, "", 0);
     }
     editor_row_insert_char(&E.row[E.cy], E.cx, c);
     E.cx++;
+}
+
+void editor_insert_new_line() {
+    if (E.cx == 0) {
+        editor_insert_row(E.cy, "", 0);
+    } else {
+        erow* row = &E.row[E.cy];
+        editor_insert_row(E.cy + 1, &row->chars[E.cx], row->size - E.cx);
+        row = &E.row[E.cy];
+        row->size = E.cx;
+        row->chars[row->size] = '\0';
+        editor_update_row(row);
+    }
+    E.cy++;
+    E.cx = 0;
 }
 
 void editor_del_char() {
@@ -383,7 +402,7 @@ void editor_open(char* fname) {
                (line[line_len - 1] == '\n' || line[line_len - 1] == '\r')) {
             line_len--;
         }
-        editor_append_row(line, line_len);
+        editor_insert_row(E.numrows, line, line_len);
     }
     free(line);
     fclose(fp);
@@ -391,7 +410,13 @@ void editor_open(char* fname) {
 }
 
 void editor_save() {
-    if (E.filename == NULL) return;
+    if (E.filename == NULL) {
+        E.filename = editor_prompt("Save As : %s");
+        if (E.filename == NULL) {
+            editor_set_status("Save Aborted");
+            return;
+        }
+    }
 
     int len;
     char* buf = editor_row_to_string(&len);
@@ -547,6 +572,40 @@ void editor_set_status(const char* fmt, ...) {
 
 /* INPUT FUNCTIONS */
 
+char* editor_prompt(char* prompt) {
+    size_t bufsize = 128;
+    char* buf = malloc(bufsize);
+
+    size_t buflen = 0;
+    buf[0] = '\0';
+
+    while (1) {
+        editor_set_status(prompt, buf);
+        editor_refresh_screen();
+
+        int c = editor_read_key();
+        if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
+            if (buflen != 0) buf[--buflen] = '\0';
+        } else if (c == '\x1b') {
+            editor_set_status("");
+            free(buf);
+            return NULL;
+        } else if (c == '\r') {
+            if (buflen != 0) {
+                editor_set_status("");
+                return buf;
+            }
+        } else if (!iscntrl(c) && c < 128) {
+            if (buflen == bufsize - 1) {
+                bufsize *= 2;
+                buf = realloc(buf, bufsize);
+            }
+            buf[buflen++] = c;
+            buf[buflen] = '\0';
+        }
+    }
+}
+
 void editor_move_cursor(int key) {
     erow* row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
 
@@ -589,7 +648,7 @@ void editor_process_key() {
     int c = editor_read_key();
     switch (c) {
         case '\r':
-            // TODO: New Line Handling
+            editor_insert_new_line();
             break;
 
         case CTRL_KEY('q'):
