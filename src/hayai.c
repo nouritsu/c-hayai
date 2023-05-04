@@ -22,9 +22,6 @@
 
 // Converts ASCII character k into ASCII character equivalent to keypress CTRL+k
 #define CTRL_KEY(k) ((k)&0x1f)
-#define HAYAI_VERSION "0.0.1"
-#define HAYAI_TAB_STOP 8
-#define HAYAI_QUIT_TIMES 3
 
 enum editor_key {
     BACKSPACE = 127,
