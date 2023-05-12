@@ -10,3 +10,9 @@ enum editor_key {
     PAGE_UP,
     PAGE_DOWN,
 };
+
+enum editor_highlight {
+    HL_NORMAL = 0,
+    HL_NUMBER,
+    HL_MATCH,
+};
