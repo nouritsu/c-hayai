@@ -1,4 +1,4 @@
-#define HAYAI_VERSION "1.1.1"
+#define HAYAI_VERSION "1.1.0"
 #define HAYAI_TAB_STOP 4
 #define HAYAI_QUIT_TIMES 3
 
