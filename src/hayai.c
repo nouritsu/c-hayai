@@ -736,7 +736,18 @@ void editor_draw_rows(struct abuf* ab) {
             unsigned char* hl = &E.row[filerow].hl[E.coloff];
             int current_colour = -1;
             for (int i = 0; i < len; i++) {
-                if (hl[i] == HL_NORMAL) {
+                if (iscntrl(c[i])) {
+                    char sym = (c[i] <= 26) ? '@' + c[i] : '?';
+                    ab_append(ab, "\x1b[7m", 4);
+                    ab_append(ab, &sym, 1);
+                    ab_append(ab, "\x1b[m", 3);
+                    if (current_colour != -1) {
+                        char buf[16];
+                        int clen = snprintf(buf, sizeof(buf), "\x1b[%dm",
+                                            current_colour);
+                        ab_append(ab, buf, clen);
+                    }
+                } else if (hl[i] == HL_NORMAL) {
                     if (current_colour != -1) {
                         ab_append(ab, "\x1b[39m", 5);
                         current_colour = -1;
