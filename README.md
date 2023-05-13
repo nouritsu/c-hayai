@@ -3,7 +3,19 @@
 # About
 
 A simple text editor written in C.  
-The name comes from the Japanese word 速い (hayai) which means fast or swift.
+The name comes from the Japanese word 速い (hayai) which means fast or swift.  
+
+Here are a few snaps of the editor.  
+![image](https://github.com/nouritsu/c-hayai/assets/113834791/99aee4a1-a5ee-466c-b174-83f876757458)
+![image](https://github.com/nouritsu/c-hayai/assets/113834791/83b99f91-b157-4f21-8aa7-3a322776d4a1)
+![image](https://github.com/nouritsu/c-hayai/assets/113834791/b5abcbe4-e9b9-4416-968d-03a67d80bd5d)
+
+
+
+The editor now supports syntax highlighting for my language : Reigai and it looks like this.
+![image](https://github.com/nouritsu/c-hayai/assets/113834791/70eeebac-e7de-474c-8acc-3573234e7f49)
+I'm using the [Catpuccin](https://github.com/catppuccin/catppuccin) theme for my terminal in the above images.
+
 
 # Usage
 
@@ -55,7 +67,7 @@ Press Control + Q to exit.
 Run the following command to open a file -
 
 ```
-./hayai <file-path>
+./hayai_release <file-path>
 ```
 
 The file will be edited, edits will only be saved if saved manually.  
@@ -79,6 +91,11 @@ Arrow keys can be used to move to next or previous occurence.
 
 # Hacking the editor
 
+## Changing Themes
+The editor works with whatever theme you have on your terminal.  
+To change the theme of the editor, you will need to change the theme of your terminal.
+
+## Changing Behaviour
 Editing `hayai_constants.h` in the `inc` directory can change how Hayai does certain things.
 | Constant | Description | Effect |
 |:----------------: |:-------------------------------------------------: |:------------------------------------------------------------------------------------------------------: |
@@ -92,7 +109,8 @@ Editing `hayai_constants.h` in the `inc` directory can change how Hayai does cer
 
 # Plans for the future (Unsorted)
 
-- Adding file type detection
-- Adding syntax highlighting for code files
+- ~~Adding file type detection~~ DONE!
+- ~~Adding syntax highlighting for code files~~ DONE!
+- Adding support for more file types
 - Line numbers
 - Making the editor use a config file
