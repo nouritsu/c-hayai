@@ -12,7 +12,7 @@ Here are a few snaps of the editor.
 
 
 
-The editor now supports syntax highlighting for my language : Reigai and it looks like this.
+The editor now supports syntax highlighting for my language : [Reigai](https://github.com/nouritsu/java-reigai) and it looks like this.
 ![image](https://github.com/nouritsu/c-hayai/assets/113834791/70eeebac-e7de-474c-8acc-3573234e7f49)
 I'm using the [Catpuccin](https://github.com/catppuccin/catppuccin) theme for my terminal in the above images.
 
