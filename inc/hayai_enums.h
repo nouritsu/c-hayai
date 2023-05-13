@@ -13,6 +13,10 @@ enum editor_key {
 
 enum editor_highlight {
     HL_NORMAL = 0,
+    HL_STRING,
+    HL_COMMENT,
     HL_NUMBER,
     HL_MATCH,
+    HL_KW1,
+    HL_KW2,
 };
